@@ -6,10 +6,15 @@ LICENSE file in the root directory of this source tree.
 #include "common/NetworkParser.h"
 #include <cassert>
 #include <iostream>
+#include <limits>
 
 using namespace NetworkAnalytical;
 
-NetworkParser::NetworkParser(const std::string& path) noexcept : dims_count(-1) {
+NetworkParser::NetworkParser(const std::string& path) noexcept
+        : dims_count(-1),
+            quantization_enabled(false),
+            quantization_ratio(1.0),
+            quantization_queue_threshold(std::numeric_limits<uint64_t>::max()) {
     // initialize values
     npus_count_per_dim = {};
     bandwidth_per_dim = {};
@@ -63,6 +68,18 @@ std::vector<TopologyBuildingBlock> NetworkParser::get_topologies_per_dim() const
     return topology_per_dim;
 }
 
+bool NetworkParser::get_quantization_enabled() const noexcept {
+    return quantization_enabled;
+}
+
+double NetworkParser::get_quantization_ratio() const noexcept {
+    return quantization_ratio;
+}
+
+uint64_t NetworkParser::get_quantization_queue_threshold() const noexcept {
+    return quantization_queue_threshold;
+}
+
 void NetworkParser::parse_network_config_yml(const YAML::Node& network_config) noexcept {
     // parse topology_per_dim
     const auto topology_names = parse_vector<std::string>(network_config["topology"]);
@@ -78,6 +95,21 @@ void NetworkParser::parse_network_config_yml(const YAML::Node& network_config) n
     npus_count_per_dim = parse_vector<int>(network_config["npus_count"]);
     bandwidth_per_dim = parse_vector<Bandwidth>(network_config["bandwidth"]);
     latency_per_dim = parse_vector<Latency>(network_config["latency"]);
+
+    if (network_config["quantization"]) {
+        const auto quantization = network_config["quantization"];
+
+        if (quantization["enabled"]) {
+            quantization_enabled = quantization["enabled"].as<bool>();
+        }
+        if (quantization["ratio"]) {
+            quantization_ratio = quantization["ratio"].as<double>();
+        }
+        if (quantization["queue_threshold"]) {
+            quantization_queue_threshold =
+                quantization["queue_threshold"].as<uint64_t>();
+        }
+    }
 
     // check the validity of the parsed network config
     check_validity();
@@ -148,5 +180,12 @@ void NetworkParser::check_validity() const noexcept {
                       << std::endl;
             std::exit(-1);
         }
+    }
+
+    if (!(quantization_ratio > 0.0 && quantization_ratio <= 1.0)) {
+        std::cerr << "[Error] (network/analytical) "
+                  << "quantization ratio (" << quantization_ratio
+                  << ") should be in (0, 1]" << std::endl;
+        std::exit(-1);
     }
 }

@@ -60,6 +60,21 @@ class NetworkParser {
      */
     [[nodiscard]] std::vector<TopologyBuildingBlock> get_topologies_per_dim() const noexcept;
 
+    /**
+     * Read optional "quantization.enabled" value.
+     */
+    [[nodiscard]] bool get_quantization_enabled() const noexcept;
+
+    /**
+     * Read optional "quantization.ratio" value.
+     */
+    [[nodiscard]] double get_quantization_ratio() const noexcept;
+
+    /**
+     * Read optional "quantization.queue_threshold" value.
+     */
+    [[nodiscard]] uint64_t get_quantization_queue_threshold() const noexcept;
+
   private:
     /// number of network dimensions
     int dims_count;
@@ -75,6 +90,15 @@ class NetworkParser {
 
     /// topology building block per each dimension
     std::vector<TopologyBuildingBlock> topology_per_dim;
+
+    /// whether quantization policy is enabled
+    bool quantization_enabled;
+
+    /// quantized effective size ratio
+    double quantization_ratio;
+
+    /// queue depth threshold to trigger quantization
+    uint64_t quantization_queue_threshold;
 
     /**
      * Parse topology name (in string) into TopologyBuildingBlock enum

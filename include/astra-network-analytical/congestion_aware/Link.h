@@ -8,7 +8,11 @@ LICENSE file in the root directory of this source tree.
 #include "common/EventQueue.h"
 #include "common/Type.h"
 #include "congestion_aware/Type.h"
+#include <cstdint>
+#include <fstream>
+#include <limits>
 #include <memory>
+#include <vector>
 
 using namespace NetworkAnalytical;
 
@@ -19,6 +23,23 @@ namespace NetworkAnalyticalCongestionAware {
  */
 class Link {
   public:
+    /**
+     * Configure quantization behavior for all links.
+     *
+     * @param enabled true to enable quantization-aware chunk shrinking
+     * @param ratio effective size ratio applied to quantized chunks
+     * @param queue_threshold queue depth threshold to trigger quantization
+     */
+    static void configure_quantization(bool enabled,
+                                       double ratio,
+                                       uint64_t queue_threshold) noexcept;
+
+    /**
+     * Print aggregated quantization and congestion statistics for all links.
+     * Intended for end-of-simulation reporting.
+     */
+    static void report_quantization_stats() noexcept;
+
     /**
      * Callback to be called when a link becomes free.
      *  - If the link has pending chunks, process the first one.
@@ -79,6 +100,27 @@ class Link {
     /// event queue Link uses to schedule events
     static std::shared_ptr<EventQueue> event_queue;
 
+    /// global policy switch for quantization-aware sizing
+    static bool quantization_enabled;
+
+    /// quantized size ratio in (0, 1]
+    static double quantization_ratio;
+
+    /// queue depth threshold that enables quantization when reached
+    static uint64_t quantization_queue_threshold;
+
+    /// all link instances to support aggregated statistics reporting
+    static std::vector<Link*> all_links;
+
+    /// guard to avoid duplicate reporting
+    static bool quantization_reported;
+
+    /// output stream for per-transmission quantization event records
+    static std::ofstream quantization_event_stream;
+
+    /// guard for writing quantization event CSV header
+    static bool quantization_event_header_written;
+
     /// bandwidth of the link in GB/s
     Bandwidth bandwidth;
 
@@ -93,6 +135,36 @@ class Link {
 
     /// flag to indicate if the link is busy
     bool busy;
+
+    /// queue depth tracked since last update
+    uint64_t queue_depth_at_last_update;
+
+    /// timestamp when queue depth was last updated
+    EventTime queue_depth_last_update_time;
+
+    /// cumulative time spent above the quantization threshold
+    EventTime time_above_threshold;
+
+    /// queue depth observations made at scheduling points
+    uint64_t queue_depth_samples;
+
+    /// queue depth observations above threshold
+    uint64_t queue_depth_samples_above_threshold;
+
+    /// max observed pending queue depth
+    uint64_t max_queue_depth_observed;
+
+    /// transmitted chunk count on this link
+    uint64_t transmitted_chunks;
+
+    /// quantized chunk count on this link
+    uint64_t quantized_chunks;
+
+    /// bytes requested by upper layers before quantization
+    uint64_t original_transmitted_bytes;
+
+    /// effective bytes used by delay model after quantization
+    uint64_t effective_transmitted_bytes;
 
     /**
      * Compute the serialization delay of a chunk on the link.
@@ -111,6 +183,43 @@ class Link {
      * @return communication delay of the chunk
      */
     [[nodiscard]] EventTime communication_delay(ChunkSize chunk_size) const noexcept;
+
+    /**
+     * Current congestion level seen by this link.
+     * Defined as pending queue depth plus one when link is busy.
+     */
+    [[nodiscard]] uint64_t current_congestion_level() const noexcept;
+
+    /**
+     * Update time-weighted queue depth accounting until the given timestamp.
+     */
+    void update_queue_time_accounting(EventTime now) noexcept;
+
+    /**
+     * Return true when a chunk should be quantized at current queue depth.
+     */
+    [[nodiscard]] bool should_quantize(uint64_t queue_depth) const noexcept;
+
+    /**
+     * Compute effective chunk size after quantization policy.
+     */
+    [[nodiscard]] ChunkSize effective_chunk_size(ChunkSize original_size,
+                           bool quantized) const noexcept;
+
+    /**
+     * Ensure quantization event log stream is initialized.
+     */
+    static void ensure_quantization_event_stream() noexcept;
+
+    /**
+     * Emit one quantization event record for a transmission.
+     */
+    void log_quantization_event(const Chunk& chunk,
+                  ChunkSize original_size,
+                  ChunkSize modeled_size,
+                  bool quantized,
+                  uint64_t congestion_level,
+                  EventTime current_time) noexcept;
 
     /**
      * Schedule the transmission of a chunk.

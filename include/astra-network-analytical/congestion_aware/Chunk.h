@@ -36,7 +36,14 @@ class Chunk {
      * @param callback: callback to be invoked when the chunk arrives destination
      * @param callback_arg: argument of the callback
      */
-    Chunk(ChunkSize chunk_size, Route route, Callback callback, CallbackArg callback_arg) noexcept;
+        Chunk(ChunkSize chunk_size,
+          Route route,
+          Callback callback,
+          CallbackArg callback_arg,
+          uint64_t node_id = 0,
+          int comm_tag = -1,
+          int comm_src = -1,
+          int comm_dst = -1) noexcept;
 
     /**
      * Get the current sitting device of the chunk
@@ -74,6 +81,26 @@ class Chunk {
     [[nodiscard]] ChunkSize get_size() const noexcept;
 
     /**
+     * Get associated Chakra node id for this communication chunk.
+     */
+    [[nodiscard]] uint64_t get_node_id() const noexcept;
+
+    /**
+     * Get communication tag associated with this chunk.
+     */
+    [[nodiscard]] int get_comm_tag() const noexcept;
+
+    /**
+     * Get source rank associated with this chunk.
+     */
+    [[nodiscard]] int get_comm_src() const noexcept;
+
+    /**
+     * Get destination rank associated with this chunk.
+     */
+    [[nodiscard]] int get_comm_dst() const noexcept;
+
+    /**
      * Invoke the registered callback
      * i.e., this method should be called when the chunk arrives its destination.
      */
@@ -94,6 +121,18 @@ class Chunk {
 
     /// argument of the callback
     CallbackArg callback_arg;
+
+    /// Chakra node id that generated this communication chunk
+    uint64_t node_id;
+
+    /// communication tag
+    int comm_tag;
+
+    /// communication source rank
+    int comm_src;
+
+    /// communication destination rank
+    int comm_dst;
 };
 
 }  // namespace NetworkAnalyticalCongestionAware

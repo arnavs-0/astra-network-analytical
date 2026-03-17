@@ -30,11 +30,22 @@ void Chunk::chunk_arrived_next_device(void* const chunk_ptr) noexcept {
     }
 }
 
-Chunk::Chunk(const ChunkSize chunk_size, Route route, const Callback callback, const CallbackArg callback_arg) noexcept
+Chunk::Chunk(const ChunkSize chunk_size,
+                         Route route,
+                         const Callback callback,
+                         const CallbackArg callback_arg,
+                         const uint64_t node_id,
+                         const int comm_tag,
+                         const int comm_src,
+                         const int comm_dst) noexcept
     : chunk_size(chunk_size),
       route(std::move(route)),
       callback(callback),
-      callback_arg(callback_arg) {
+            callback_arg(callback_arg),
+            node_id(node_id),
+            comm_tag(comm_tag),
+            comm_src(comm_src),
+            comm_dst(comm_dst) {
     assert(chunk_size > 0);
     assert(!this->route.empty());
     assert(callback != nullptr);
@@ -78,6 +89,22 @@ ChunkSize Chunk::get_size() const noexcept {
 
     // return chunk size
     return chunk_size;
+}
+
+uint64_t Chunk::get_node_id() const noexcept {
+    return node_id;
+}
+
+int Chunk::get_comm_tag() const noexcept {
+    return comm_tag;
+}
+
+int Chunk::get_comm_src() const noexcept {
+    return comm_src;
+}
+
+int Chunk::get_comm_dst() const noexcept {
+    return comm_dst;
 }
 
 void Chunk::invoke_callback() noexcept {
