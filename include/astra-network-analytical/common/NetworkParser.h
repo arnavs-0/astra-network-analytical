@@ -1,4 +1,4 @@
-/******************************************************************************
+/****************************************************************************
 This source code is licensed under the MIT license found in the
 LICENSE file in the root directory of this source tree.
 *******************************************************************************/
@@ -7,6 +7,7 @@ LICENSE file in the root directory of this source tree.
 
 #include "common/Type.h"
 #include <iostream>
+#include <string>
 #include <yaml-cpp/yaml.h>
 
 namespace NetworkAnalytical {
@@ -75,6 +76,41 @@ class NetworkParser {
      */
     [[nodiscard]] uint64_t get_quantization_queue_threshold() const noexcept;
 
+    /**
+     * Read optional "quantization.policy" value.
+     */
+    [[nodiscard]] std::string get_quantization_policy() const noexcept;
+
+    /**
+     * Read optional "quantization.congestion_metric" value.
+     */
+    [[nodiscard]] std::string get_quantization_metric() const noexcept;
+
+    /**
+     * Read optional "quantization.threshold" value.
+     */
+    [[nodiscard]] double get_quantization_threshold() const noexcept;
+
+    /**
+     * Read optional "quantization.metadata.mode" value.
+     */
+    [[nodiscard]] std::string get_quantization_metadata_mode() const noexcept;
+
+    /**
+     * Read optional "quantization.metadata.bytes_per_chunk" value.
+     */
+    [[nodiscard]] uint64_t get_quantization_metadata_bytes_per_chunk() const noexcept;
+
+    /**
+     * Read optional "quantization.metadata.bytes_per_group" value.
+     */
+    [[nodiscard]] uint64_t get_quantization_metadata_bytes_per_group() const noexcept;
+
+    /**
+     * Read optional "quantization.metadata.group_size_bytes" value.
+     */
+    [[nodiscard]] uint64_t get_quantization_metadata_group_size_bytes() const noexcept;
+
   private:
     /// number of network dimensions
     int dims_count;
@@ -97,8 +133,29 @@ class NetworkParser {
     /// quantized effective size ratio
     double quantization_ratio;
 
-    /// queue depth threshold to trigger quantization
+    /// queue depth threshold kept for backward compatibility and reporting
     uint64_t quantization_queue_threshold;
+
+    /// quantization decision policy
+    std::string quantization_policy;
+
+    /// congestion metric used by the quantization policy
+    std::string quantization_metric;
+
+    /// generic threshold for the selected congestion metric
+    double quantization_threshold;
+
+    /// ML metadata mode for quantized transfers
+    std::string quantization_metadata_mode;
+
+    /// fixed metadata bytes sent per quantized chunk
+    uint64_t quantization_metadata_bytes_per_chunk;
+
+    /// metadata bytes sent per group/channel for quantized chunks
+    uint64_t quantization_metadata_bytes_per_group;
+
+    /// payload bytes covered by one metadata group/channel
+    uint64_t quantization_metadata_group_size_bytes;
 
     /**
      * Parse topology name (in string) into TopologyBuildingBlock enum
@@ -131,25 +188,16 @@ class NetworkParser {
      * @return std::vector<T> of read elements
      */
     template <typename T> std::vector<T> parse_vector(const YAML::Node& node) const noexcept {
-        // create empty vector to store parsed values
         auto parsed_vector = std::vector<T>();
-
-        // try to read each element
         for (const auto& element : node) {
             try {
-                // read an element in type T
                 const auto element_value = element.as<T>();
-
-                // store the read element
                 parsed_vector.push_back(element_value);
             } catch (const YAML::BadConversion& e) {
-                // error reading an element from the yaml file as type T
                 std::cerr << "[Error] (network/analytical) " << e.what() << std::endl;
                 std::exit(-1);
             }
         }
-
-        // return parsed vector
         return parsed_vector;
     }
 };
